@@ -12,6 +12,7 @@ import (
 	"github.com/sagernet/sing-box/transport/v2rayhttp"
 	"github.com/sagernet/sing-box/transport/v2rayhttpupgrade"
 	"github.com/sagernet/sing-box/transport/v2raywebsocket"
+	"github.com/sagernet/sing-box/transport/v2rayxhttp"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
@@ -45,6 +46,8 @@ func NewServerTransport(ctx context.Context, logger logger.ContextLogger, option
 		return v2raykcp.NewServer(ctx, logger, options.KCPOptions, tlsConfig, handler)
 	case C.V2RayTransportTypeMKCP:
 		return v2raymkcp.NewServer(ctx, logger, options.MKCPOptions, tlsConfig, handler)
+	case C.V2RayTransportTypeXHTTP, C.V2RayTransportTypeSplitHTTP:
+		return v2rayxhttp.NewServer(ctx, logger, options.XHTTPOptions, tlsConfig, handler)
 	default:
 		return nil, E.New("unknown transport type: " + options.Type)
 	}
@@ -72,6 +75,8 @@ func NewClientTransport(ctx context.Context, dialer N.Dialer, serverAddr M.Socks
 		return v2raykcp.NewClient(ctx, dialer, serverAddr, options.KCPOptions, tlsConfig)
 	case C.V2RayTransportTypeMKCP:
 		return v2raymkcp.NewClient(ctx, dialer, serverAddr, options.MKCPOptions, tlsConfig)
+	case C.V2RayTransportTypeXHTTP, C.V2RayTransportTypeSplitHTTP:
+		return v2rayxhttp.NewClient(ctx, dialer, serverAddr, options.XHTTPOptions, tlsConfig)
 	default:
 		return nil, E.New("unknown transport type: " + options.Type)
 	}

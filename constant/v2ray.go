@@ -8,4 +8,6 @@ const (
 	V2RayTransportTypeHTTPUpgrade = "httpupgrade"
 	V2RayTransportTypeKCP         = "kcp"
 	V2RayTransportTypeMKCP        = "mkcp"
+	V2RayTransportTypeXHTTP       = "xhttp"
+	V2RayTransportTypeSplitHTTP   = "splithttp" // alias for xhttp (Xray compat)
 )

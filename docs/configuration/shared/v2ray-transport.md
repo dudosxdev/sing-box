@@ -17,6 +17,7 @@ Available transports:
 * gRPC
 * HTTPUpgrade
 * mKCP (finalmask)
+* xHTTP (splitHTTP)
 
 !!! warning "Difference from v2ray-core"
 
@@ -467,3 +468,479 @@ When using with an Xray-core v26+ server/client, the mask types map as follows:
   }]
 }
 ```
+
+### xHTTP (splitHTTP)
+
+```json
+{
+  "type": "xhttp",
+  "host": "",
+  "path": "/",
+  "mode": "",
+  "headers": {},
+
+  "x_padding_bytes": {
+    "from": 100,
+    "to": 1000
+  },
+  "x_padding_obfs_mode": false,
+  "x_padding_key": "",
+  "x_padding_header": "",
+  "x_padding_placement": "",
+  "x_padding_method": "",
+
+  "no_grpc_header": false,
+  "no_sse_header": false,
+
+  "uplink_http_method": "POST",
+  "uplink_data_placement": "",
+  "uplink_data_key": "",
+  "uplink_chunk_size": 1000000,
+
+  "session_placement": "",
+  "session_key": "",
+  "seq_placement": "",
+  "seq_key": "",
+
+  "sc_max_each_post_bytes": {
+    "from": 1000000,
+    "to": 1000000
+  },
+  "sc_min_posts_interval_ms": {
+    "from": 30,
+    "to": 30
+  },
+  "sc_max_buffered_posts": 30,
+  "sc_stream_up_server_secs": {
+    "from": 20,
+    "to": 80
+  },
+
+  "xmux": {
+    "max_concurrency": {
+      "from": 0,
+      "to": 0
+    },
+    "max_connections": {
+      "from": 0,
+      "to": 0
+    },
+    "c_max_reuse_times": {
+      "from": 0,
+      "to": 0
+    },
+    "h_max_request_times": {
+      "from": 0,
+      "to": 0
+    },
+    "h_max_reusable_secs": {
+      "from": 0,
+      "to": 0
+    },
+    "h_keep_alive_period": 0
+  }
+}
+```
+
+!!! info "Compatibility"
+
+    Fully compatible with Xray-core xHTTP/splitHTTP transport. Verified with Xray-core v26+.
+    Both `"xhttp"` and `"splithttp"` type names are accepted as aliases.
+
+!!! note "Transport modes"
+
+    xHTTP supports three operation modes:
+
+    * **`packet-up`** (default) — Upload via individual POST requests (each with a sequence number), download via long-lived GET (SSE-style stream). Best compatibility with CDNs and reverse proxies.
+    * **`stream-up`** — Upload via a single long-lived POST, download via a single long-lived GET. Lower overhead but requires HTTP/2 or h2c for best results.
+    * **`stream-one`** — Single bidirectional HTTP request (upload body + streaming response). Simplest mode but limited CDN compatibility.
+
+#### host
+
+Host domain.
+
+The server will verify if not empty.
+
+#### path
+
+Path of HTTP request. A query string can be appended after `?`.
+
+The path is automatically normalized: a leading `/` is added if missing, and a trailing `/` is appended.
+
+The server will verify the path prefix.
+
+#### mode
+
+Transport mode. One of `packet-up`, `stream-up`, `stream-one`, or empty (defaults to `packet-up`).
+
+Must be consistent between client and server if set explicitly.
+
+#### headers
+
+Extra headers of HTTP request.
+
+A default `User-Agent` header (Chrome-like) is added if not specified.
+
+#### x_padding_bytes
+
+Range `{from, to}` for the random padding size in bytes added to each request/response.
+
+Default: `{from: 100, to: 1000}`.
+
+#### x_padding_obfs_mode
+
+If `true`, padding is placed using custom obfuscation placement (see `x_padding_placement`, `x_padding_key`, `x_padding_header`).
+
+If `false` (default), padding is placed as `x_padding` query parameter in the `Referer` header (standard Xray behavior).
+
+#### x_padding_key
+
+Key name for padding value in obfs mode (used in query/cookie placement).
+
+#### x_padding_header
+
+Header name for padding value in obfs mode (used in header/queryInHeader placement).
+
+#### x_padding_placement
+
+Where to place padding in obfs mode. One of:
+
+| Value | Description |
+|-------|-------------|
+| `header` | Padding placed as a custom header value |
+| `queryInHeader` | Padding placed as a query in a URL stored in a header |
+| `cookie` | Padding placed as a cookie |
+| `query` | Padding placed as a URL query parameter |
+
+#### x_padding_method
+
+Padding generation method:
+
+| Value | Description |
+|-------|-------------|
+| `repeat-x` (default) | Repeated `X` characters |
+| `tokenish` | Base62 random string sized by Huffman-encoded length |
+
+#### no_grpc_header
+
+If `true`, the `Content-Type: application/grpc` header is not added to upload requests.
+
+Default: `false`.
+
+#### no_sse_header
+
+If `true`, the `Content-Type: text/event-stream` header is not added to download responses.
+
+Default: `false`.
+
+#### uplink_http_method
+
+HTTP method for upload requests.
+
+Default: `POST`.
+
+#### uplink_data_placement
+
+Where to place upload data:
+
+| Value | Description |
+|-------|-------------|
+| `body` (default) | Data in the request body |
+| `header` | Data base64-encoded in chunked headers |
+| `cookie` | Data base64-encoded in chunked cookies |
+
+When using `header` or `cookie`, `uplink_data_key` is required.
+
+#### uplink_data_key
+
+Key prefix for non-body data placement. For `header` mode, chunks are named `{key}-0`, `{key}-1`, etc. with `{key}-Length` for total length. For `cookie` mode, chunks are named `{key}_0`, `{key}_1`, etc.
+
+#### uplink_chunk_size
+
+Maximum size of each encoded data chunk for non-body placement.
+
+Default: `1000000`.
+
+#### session_placement
+
+Where to place the session ID:
+
+| Value | Description |
+|-------|-------------|
+| `path` (default) | Appended to the URL path |
+| `query` | As a URL query parameter |
+| `header` | As a request header |
+| `cookie` | As a cookie |
+
+#### session_key
+
+Key name for the session ID when not using `path` placement.
+
+Defaults: `X-Session` for header, `x_session` for query/cookie.
+
+#### seq_placement
+
+Where to place the sequence number (packet-up mode only):
+
+| Value | Description |
+|-------|-------------|
+| `path` (default) | Appended to the URL path |
+| `query` | As a URL query parameter |
+| `header` | As a request header |
+| `cookie` | As a cookie |
+
+#### seq_key
+
+Key name for the sequence number when not using `path` placement.
+
+Defaults: `X-Seq` for header, `x_seq` for query/cookie.
+
+#### sc_max_each_post_bytes
+
+Range `{from, to}` for maximum upload POST body size in bytes (packet-up mode).
+
+Default: `{from: 1000000, to: 1000000}`.
+
+#### sc_min_posts_interval_ms
+
+Range `{from, to}` for minimum interval between consecutive POST requests in milliseconds (packet-up mode).
+
+Default: `{from: 30, to: 30}`.
+
+#### sc_max_buffered_posts
+
+Maximum number of out-of-order packets to buffer before reordering (packet-up mode).
+
+Default: `30`.
+
+#### sc_stream_up_server_secs
+
+Range `{from, to}` for the server keep-alive response interval in seconds (stream-up mode).
+
+Default: `{from: 20, to: 80}`.
+
+#### xmux
+
+Client-side connection multiplexing settings. Only effective on the client.
+
+##### max_concurrency
+
+Range `{from, to}`. Maximum number of concurrent streams per HTTP/2 connection.
+
+##### max_connections
+
+Range `{from, to}`. Target number of HTTP/2 connections to maintain.
+
+##### c_max_reuse_times
+
+Range `{from, to}`. Maximum number of times a connection can be reused for new streams.
+
+##### h_max_request_times
+
+Range `{from, to}`. Maximum number of HTTP requests per connection.
+
+##### h_max_reusable_secs
+
+Range `{from, to}`. Maximum time in seconds a connection can be reused.
+
+##### h_keep_alive_period
+
+Keep-alive period in seconds. Not yet implemented.
+
+#### Full example: sing-box ↔ sing-box
+
+**sing-box server:**
+```json
+{
+  "inbounds": [{
+    "type": "vless",
+    "listen": "0.0.0.0",
+    "listen_port": 443,
+    "users": [{"uuid": "your-uuid"}],
+    "transport": {
+      "type": "xhttp",
+      "path": "/secret-path"
+    }
+  }],
+  "outbounds": [{"type": "direct"}]
+}
+```
+
+**sing-box client:**
+```json
+{
+  "outbounds": [{
+    "type": "vless",
+    "server": "example.com",
+    "server_port": 443,
+    "uuid": "your-uuid",
+    "transport": {
+      "type": "xhttp",
+      "path": "/secret-path"
+    }
+  }]
+}
+```
+
+#### Full example: sing-box client → Xray-core server
+
+**Xray-core server:**
+```json
+{
+  "inbounds": [{
+    "listen": "0.0.0.0",
+    "port": 443,
+    "protocol": "vless",
+    "settings": {
+      "clients": [{"id": "your-uuid"}],
+      "decryption": "none"
+    },
+    "streamSettings": {
+      "network": "xhttp",
+      "xhttpSettings": {
+        "path": "/secret-path"
+      }
+    }
+  }],
+  "outbounds": [{"protocol": "freedom"}]
+}
+```
+
+**sing-box client:**
+```json
+{
+  "outbounds": [{
+    "type": "vless",
+    "server": "example.com",
+    "server_port": 443,
+    "uuid": "your-uuid",
+    "transport": {
+      "type": "xhttp",
+      "path": "/secret-path"
+    }
+  }]
+}
+```
+
+#### Full example: Xray-core client → sing-box server
+
+**sing-box server:**
+```json
+{
+  "inbounds": [{
+    "type": "vless",
+    "listen": "0.0.0.0",
+    "listen_port": 443,
+    "users": [{"uuid": "your-uuid"}],
+    "transport": {
+      "type": "xhttp",
+      "path": "/secret-path"
+    }
+  }],
+  "outbounds": [{"type": "direct"}]
+}
+```
+
+**Xray-core client:**
+```json
+{
+  "outbounds": [{
+    "protocol": "vless",
+    "settings": {
+      "vnext": [{
+        "address": "example.com",
+        "port": 443,
+        "users": [{"id": "your-uuid", "encryption": "none"}]
+      }]
+    },
+    "streamSettings": {
+      "network": "xhttp",
+      "xhttpSettings": {
+        "path": "/secret-path"
+      }
+    }
+  }]
+}
+```
+
+#### Advanced example: obfuscated padding with custom placement
+
+```json
+{
+  "type": "xhttp",
+  "path": "/cdn-path",
+  "mode": "packet-up",
+  "x_padding_bytes": {"from": 50, "to": 200},
+  "x_padding_obfs_mode": true,
+  "x_padding_method": "tokenish",
+  "x_padding_placement": "cookie",
+  "x_padding_key": "cf_session"
+}
+```
+
+#### Advanced example: non-body data placement
+
+```json
+{
+  "type": "xhttp",
+  "path": "/api/v1/data",
+  "uplink_http_method": "GET",
+  "uplink_data_placement": "header",
+  "uplink_data_key": "X-Data",
+  "session_placement": "header",
+  "session_key": "X-Request-Id",
+  "seq_placement": "query",
+  "seq_key": "page"
+}
+```
+
+#### Advanced example: xmux connection pooling (client only)
+
+```json
+{
+  "type": "xhttp",
+  "path": "/mux-path",
+  "xmux": {
+    "max_concurrency": {"from": 8, "to": 16},
+    "max_connections": {"from": 2, "to": 4},
+    "c_max_reuse_times": {"from": 50, "to": 100},
+    "h_max_request_times": {"from": 200, "to": 400},
+    "h_max_reusable_secs": {"from": 120, "to": 300}
+  }
+}
+```
+
+#### Xray-core config mapping
+
+| sing-box | Xray-core (xhttpSettings) |
+|----------|---------------------------|
+| `host` | `host` |
+| `path` | `path` |
+| `mode` | `mode` |
+| `headers` | `headers` |
+| `x_padding_bytes` | `xPaddingBytes` |
+| `x_padding_obfs_mode` | `xPaddingObfsMode` |
+| `x_padding_key` | `xPaddingKey` |
+| `x_padding_header` | `xPaddingHeader` |
+| `x_padding_placement` | `xPaddingPlacement` |
+| `x_padding_method` | `xPaddingMethod` |
+| `no_grpc_header` | `noGRPCHeader` |
+| `no_sse_header` | `noSSEHeader` |
+| `uplink_http_method` | `uplinkHTTPMethod` |
+| `uplink_data_placement` | `uplinkDataPlacement` |
+| `uplink_data_key` | `uplinkDataKey` |
+| `uplink_chunk_size` | `uplinkChunkSize` |
+| `session_placement` | `sessionPlacement` |
+| `session_key` | `sessionKey` |
+| `seq_placement` | `seqPlacement` |
+| `seq_key` | `seqKey` |
+| `sc_max_each_post_bytes` | `scMaxEachPostBytes` |
+| `sc_min_posts_interval_ms` | `scMinPostsIntervalMs` |
+| `sc_max_buffered_posts` | `scMaxBufferedPosts` |
+| `sc_stream_up_server_secs` | `scStreamUpServerSecs` |
+| `xmux.max_concurrency` | `xmux.maxConcurrency` |
+| `xmux.max_connections` | `xmux.maxConnections` |
+| `xmux.c_max_reuse_times` | `xmux.cMaxReuseTimes` |
+| `xmux.h_max_request_times` | `xmux.hMaxRequestTimes` |
+| `xmux.h_max_reusable_secs` | `xmux.hMaxReusableSecs` |
+| `xmux.h_keep_alive_period` | `xmux.hKeepAlivePeriod` |

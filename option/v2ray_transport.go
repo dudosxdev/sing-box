@@ -17,6 +17,7 @@ type _V2RayTransportOptions struct {
 	HTTPUpgradeOptions V2RayHTTPUpgradeOptions `json:"-"`
 	KCPOptions         V2RayKCPOptions         `json:"-"`
 	MKCPOptions        V2RayMKCPOptions        `json:"-"`
+	XHTTPOptions       V2RayXHTTPOptions       `json:"-"`
 }
 
 type V2RayTransportOptions _V2RayTransportOptions
@@ -38,6 +39,8 @@ func (o V2RayTransportOptions) MarshalJSON() ([]byte, error) {
 		v = o.KCPOptions
 	case C.V2RayTransportTypeMKCP:
 		v = o.MKCPOptions
+	case C.V2RayTransportTypeXHTTP, C.V2RayTransportTypeSplitHTTP:
+		v = o.XHTTPOptions
 	case "":
 		return nil, E.New("missing transport type")
 	default:
@@ -67,6 +70,8 @@ func (o *V2RayTransportOptions) UnmarshalJSON(bytes []byte) error {
 		v = &o.KCPOptions
 	case C.V2RayTransportTypeMKCP:
 		v = &o.MKCPOptions
+	case C.V2RayTransportTypeXHTTP, C.V2RayTransportTypeSplitHTTP:
+		v = &o.XHTTPOptions
 	default:
 		return E.New("unknown transport type: " + o.Type)
 	}
