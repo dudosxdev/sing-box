@@ -16,11 +16,11 @@ Available transports:
 * QUIC
 * gRPC
 * HTTPUpgrade
+* mKCP (finalmask)
 
 !!! warning "Difference from v2ray-core"
 
     * No TCP transport, plain HTTP is merged into the HTTP transport.
-    * No mKCP transport.
     * No DomainSocket transport.
 
 !!! note ""
@@ -227,3 +227,243 @@ The server will verify.
 Extra headers of HTTP request.
 
 The server will write in response if not empty.
+
+### mKCP (finalmask)
+
+!!! note ""
+
+    mKCP transport requires the build tag `with_v2ray_transport_mkcp`.
+
+```json
+{
+  "type": "mkcp",
+  "mtu": 1350,
+  "tti": 50,
+  "uplink_capacity": 5,
+  "downlink_capacity": 20,
+  "congestion": false,
+  "write_buffer_size": 2097152,
+  "read_buffer_size": 2097152,
+  "masks": [
+    {
+      "type": "original"
+    }
+  ]
+}
+```
+
+!!! info "Compatibility"
+
+    Compatible with Xray-core v26+ finalmask system. Works as both client and server.
+    The masks configuration on client and server must match exactly.
+
+#### mtu
+
+Maximum Transmission Unit in bytes.
+
+Default: `1350`.
+
+#### tti
+
+Transmission Time Interval in milliseconds. Lower values reduce latency but increase bandwidth usage.
+
+Default: `50`.
+
+#### uplink_capacity
+
+Uplink bandwidth capacity in MB/s. Used by the congestion control algorithm.
+
+Default: `5`.
+
+#### downlink_capacity
+
+Downlink bandwidth capacity in MB/s. Used by the congestion control algorithm.
+
+Default: `20`.
+
+#### congestion
+
+Enable built-in congestion control.
+
+Default: `false`.
+
+#### write_buffer_size
+
+Per-connection write buffer size in bytes.
+
+Default: `2097152` (2 MB).
+
+#### read_buffer_size
+
+Per-connection read buffer size in bytes.
+
+Default: `2097152` (2 MB).
+
+#### masks
+
+List of UDP masks to apply. Masks are chained in order — the first mask is the outermost (applied last on send, first on receive), the last mask manages the raw buffer.
+
+Each mask object has a `type` field and optional parameters:
+
+##### Mask types
+
+| Type | Description | Extra fields |
+|------|-------------|-------------|
+| `original` | FNV32a XOR authentication (6-byte overhead) | — |
+| `aes128gcm` | AES-128-GCM encryption (28-byte overhead) | `password` |
+| `srtp` | SRTP packet header (4 bytes) | — |
+| `utp` | µTP (µTorrent) packet header (4 bytes) | — |
+| `wechat-video` | WeChat Video Call packet header (13 bytes) | — |
+| `dtls` | DTLS 1.2 packet header (13 bytes) | — |
+| `wireguard` | WireGuard packet header (4 bytes) | — |
+| `dns` | DNS query packet header (variable) | `domain` |
+
+##### Mask examples
+
+**Basic authentication (original):**
+```json
+{
+  "masks": [{"type": "original"}]
+}
+```
+
+**AES-128-GCM encryption:**
+```json
+{
+  "masks": [{"type": "aes128gcm", "password": "my-secret"}]
+}
+```
+
+**Authentication + SRTP header disguise:**
+```json
+{
+  "masks": [{"type": "original"}, {"type": "srtp"}]
+}
+```
+
+**AES encryption + WireGuard header disguise:**
+```json
+{
+  "masks": [{"type": "aes128gcm", "password": "my-secret"}, {"type": "wireguard"}]
+}
+```
+
+**Authentication + DNS header disguise:**
+```json
+{
+  "masks": [{"type": "original"}, {"type": "dns", "domain": "www.example.com"}]
+}
+```
+
+#### Xray-core config mapping
+
+When using with an Xray-core v26+ server/client, the mask types map as follows:
+
+| sing-box | Xray-core finalmask |
+|----------|-------------------|
+| `original` | `mkcp-original` |
+| `aes128gcm` | `mkcp-aes128gcm` |
+| `srtp` | `header-srtp` |
+| `utp` | `header-utp` |
+| `wechat-video` | `header-wechat` |
+| `dtls` | `header-dtls` |
+| `wireguard` | `header-wireguard` |
+| `dns` | `header-dns` |
+
+!!! warning "Xray-core config format"
+
+    In Xray-core, mask parameters like `password` and `domain` must be placed inside a `"settings"` object:
+    ```json
+    {
+      "finalmask": {
+        "udp": [
+          {"type": "mkcp-aes128gcm", "settings": {"password": "my-secret"}},
+          {"type": "header-srtp"}
+        ]
+      }
+    }
+    ```
+
+#### Full example: sing-box client → Xray server
+
+**sing-box client:**
+```json
+{
+  "outbounds": [{
+    "type": "vmess",
+    "server": "example.com",
+    "server_port": 443,
+    "uuid": "your-uuid",
+    "security": "auto",
+    "transport": {
+      "type": "mkcp",
+      "masks": [
+        {"type": "aes128gcm", "password": "my-secret"},
+        {"type": "srtp"}
+      ]
+    }
+  }]
+}
+```
+
+**Xray-core v26 server:**
+```json
+{
+  "inbounds": [{
+    "port": 443,
+    "protocol": "vmess",
+    "settings": {"clients": [{"id": "your-uuid"}]},
+    "streamSettings": {
+      "network": "kcp",
+      "finalmask": {
+        "udp": [
+          {"type": "mkcp-aes128gcm", "settings": {"password": "my-secret"}},
+          {"type": "header-srtp"}
+        ]
+      }
+    }
+  }]
+}
+```
+
+#### Full example: sing-box server + sing-box client
+
+**sing-box server:**
+```json
+{
+  "inbounds": [{
+    "type": "vmess",
+    "listen": "0.0.0.0",
+    "listen_port": 443,
+    "users": [{"uuid": "your-uuid"}],
+    "transport": {
+      "type": "mkcp",
+      "masks": [
+        {"type": "original"},
+        {"type": "wireguard"}
+      ]
+    }
+  }],
+  "outbounds": [{"type": "direct"}]
+}
+```
+
+**sing-box client:**
+```json
+{
+  "outbounds": [{
+    "type": "vmess",
+    "server": "example.com",
+    "server_port": 443,
+    "uuid": "your-uuid",
+    "security": "auto",
+    "transport": {
+      "type": "mkcp",
+      "masks": [
+        {"type": "original"},
+        {"type": "wireguard"}
+      ]
+    }
+  }]
+}
+```
