@@ -2,6 +2,11 @@
 icon: material/alert-decagram
 ---
 
+!!! quote "sing-box 1.14.0 中的更改"
+
+    :material-plus: [source_mac_address](#source_mac_address)  
+    :material-plus: [source_hostname](#source_hostname)
+
 !!! quote "sing-box 1.13.0 中的更改"
 
     :material-plus: [interface_address](#interface_address)  
@@ -149,6 +154,12 @@ icon: material/alert-decagram
         "default_interface_address": [
           "2000::/3"
         ],
+        "source_mac_address": [
+          "00:11:22:33:44:55"
+        ],
+        "source_hostname": [
+          "my-device"
+        ],
         "wifi_ssid": [
           "My WIFI"
         ],
@@ -256,7 +267,7 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 
 !!! failure "已在 sing-box 1.12.0 中被移除"
 
-    GeoSite 已在 sing-box 1.8.0 废弃且在 sing-box 1.12.0 中被移除，参阅 [迁移指南](/zh/migration/#geosite)。
+    GeoSite 已在 sing-box 1.8.0 废弃且在 sing-box 1.12.0 中被移除，参阅 [迁移指南](/zh/migration/#迁移-geosite-到规则集)。
 
 匹配 Geosite。
 
@@ -264,7 +275,7 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 
 !!! failure "已在 sing-box 1.12.0 中被移除"
 
-    GeoIP 已在 sing-box 1.8.0 废弃且在 sing-box 1.12.0 中被移除，参阅 [迁移指南](/zh/migration/#geoip)。
+    GeoIP 已在 sing-box 1.8.0 废弃且在 sing-box 1.12.0 中被移除，参阅 [迁移指南](/zh/migration/#迁移-geoip-到规则集)。
 
 匹配源 GeoIP。
 
@@ -407,6 +418,26 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
 
 匹配默认接口地址。
 
+#### source_mac_address
+
+!!! question "自 sing-box 1.14.0 起"
+
+!!! quote ""
+
+    仅支持 Linux、macOS，或在 Android 和 macOS 图形客户端中支持。参阅 [邻居解析](/configuration/shared/neighbor/) 了解设置方法。
+
+匹配源设备 MAC 地址。
+
+#### source_hostname
+
+!!! question "自 sing-box 1.14.0 起"
+
+!!! quote ""
+
+    仅支持 Linux、macOS，或在 Android 和 macOS 图形客户端中支持。参阅 [邻居解析](/configuration/shared/neighbor/) 了解设置方法。
+
+匹配源设备从 DHCP 租约获取的主机名。
+
 #### wifi_ssid
 
 !!! quote ""
@@ -453,7 +484,7 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
 
 !!! failure "已在 sing-box 1.12.0 废弃"
 
-    `outbound` 规则项已废弃且将在 sing-box 1.14.0 中被移除，参阅 [迁移指南](/migration/#migrate-outbound-dns-rule-items-to-domain-resolver)。
+    `outbound` 规则项已废弃且将在 sing-box 1.14.0 中被移除，参阅 [迁移指南](/zh/migration/#迁移-outbound-dns-规则项到域解析选项)。
 
 匹配出站。
 
@@ -505,7 +536,7 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
 
 !!! failure "已在 sing-box 1.12.0 中被移除"
 
-    GeoIP 已在 sing-box 1.8.0 废弃且在 sing-box 1.12.0 中被移除，参阅 [迁移指南](/zh/migration/#geoip)。
+    GeoIP 已在 sing-box 1.8.0 废弃且在 sing-box 1.12.0 中被移除，参阅 [迁移指南](/zh/migration/#迁移-geoip-到规则集)。
 
 
 与查询响应匹配 GeoIP。

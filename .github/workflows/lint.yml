@@ -1,7 +1,22 @@
 name: Lint
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - oldstable
+      - stable
+      - testing
+      - unstable
+    paths-ignore:
+      - '**.md'
+      - '.github/**'
+      - '!.github/workflows/lint.yml'
+  pull_request:
+    branches:
+      - oldstable
+      - stable
+      - testing
+      - unstable
 
 jobs:
   build:
