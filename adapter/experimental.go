@@ -21,9 +21,16 @@ type ClashServer interface {
 }
 
 type URLTestHistory struct {
-	Time  time.Time `json:"time"`
-	Delay uint16    `json:"delay"`
+	Time   time.Time `json:"time"`
+	Delay  uint16    `json:"delay"`
+	Status string    `json:"status,omitempty"`
+	Error  string    `json:"error,omitempty"`
 }
+
+const (
+	URLTestStatusAvailable   = "available"
+	URLTestStatusUnavailable = "unavailable"
+)
 
 type URLTestHistoryStorage interface {
 	SetHook(hook *observable.Subscriber[struct{}])

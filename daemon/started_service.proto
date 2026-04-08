@@ -107,6 +107,8 @@ message GroupItem {
   string type = 2;
   int64 urlTestTime = 3;
   int32 urlTestDelay = 4;
+  string urlTestStatus = 5;
+  string urlTestError = 6;
 }
 
 message URLTestRequest {

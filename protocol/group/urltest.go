@@ -376,7 +376,10 @@ func (g *URLTestGroup) urlTest(ctx context.Context, force bool) (map[string]uint
 			continue
 		}
 		history := g.history.LoadURLTestHistory(realTag)
-		if !force && history != nil && time.Since(history.Time) < g.interval {
+		if !force &&
+			history != nil &&
+			history.Status != adapter.URLTestStatusUnavailable &&
+			time.Since(history.Time) < g.interval {
 			continue
 		}
 		checked[realTag] = true
@@ -390,12 +393,17 @@ func (g *URLTestGroup) urlTest(ctx context.Context, force bool) (map[string]uint
 			t, err := urltest.URLTest(testCtx, g.link, p)
 			if err != nil {
 				g.logger.Debug("outbound ", tag, " unavailable: ", err)
-				g.history.DeleteURLTestHistory(realTag)
+				g.history.StoreURLTestHistory(realTag, &adapter.URLTestHistory{
+					Time:   time.Now(),
+					Status: adapter.URLTestStatusUnavailable,
+					Error:  err.Error(),
+				})
 			} else {
 				g.logger.Debug("outbound ", tag, " available: ", t, "ms")
 				g.history.StoreURLTestHistory(realTag, &adapter.URLTestHistory{
-					Time:  time.Now(),
-					Delay: t,
+					Time:   time.Now(),
+					Delay:  t,
+					Status: adapter.URLTestStatusAvailable,
 				})
 				resultAccess.Lock()
 				result[tag] = t

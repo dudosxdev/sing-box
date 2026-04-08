@@ -497,6 +497,8 @@ func (s *StartedService) readGroups() *Groups {
 			if history := historyStorage.LoadURLTestHistory(adapter.OutboundTag(itemOutbound)); history != nil {
 				item.UrlTestTime = history.Time.Unix()
 				item.UrlTestDelay = int32(history.Delay)
+				item.UrlTestStatus = history.Status
+				item.UrlTestError = history.Error
 			}
 			g.Items = append(g.Items, &item)
 		}
@@ -613,14 +615,17 @@ func (s *StartedService) URLTest(ctx context.Context, request *URLTestRequest) (
 			outboundTag := outboundToTest.Tag()
 			b.Go(outboundTag, func() (any, error) {
 				t, err := urltest.URLTest(boxService.ctx, "", outboundToTest)
-				if err != nil {
-					historyStorage.DeleteURLTestHistory(outboundTag)
-				} else {
-					historyStorage.StoreURLTestHistory(outboundTag, &adapter.URLTestHistory{
-						Time:  time.Now(),
-						Delay: t,
-					})
+				history := &adapter.URLTestHistory{
+					Time: time.Now(),
 				}
+				if err != nil {
+					history.Status = adapter.URLTestStatusUnavailable
+					history.Error = err.Error()
+				} else {
+					history.Delay = t
+					history.Status = adapter.URLTestStatusAvailable
+				}
+				historyStorage.StoreURLTestHistory(outboundTag, history)
 				return nil, nil
 			})
 		}
