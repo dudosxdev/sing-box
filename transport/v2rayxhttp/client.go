@@ -97,7 +97,10 @@ func (c *Client) createHTTPClient() *http.Client {
 			DialTLSContext: func(ctx context.Context, network, addr string, cfg *tls.STDConfig) (net.Conn, error) {
 				return tlsDialer.DialTLSContext(ctx, M.ParseSocksaddr(addr))
 			},
-			IdleConnTimeout: 90 * time.Second,
+			IdleConnTimeout:  90 * time.Second,
+			ReadIdleTimeout:  15 * time.Second,
+			PingTimeout:      15 * time.Second,
+			WriteByteTimeout: 30 * time.Second,
 		}
 	} else {
 		transport = &http.Transport{
@@ -376,7 +379,10 @@ func (c *Client) dialPacketUp(ctx context.Context, httpClient *http.Client, xmux
 func (c *Client) Close() error {
 	c.xmuxAccess.Lock()
 	defer c.xmuxAccess.Unlock()
-	c.xmuxManager = nil
+	if c.xmuxManager != nil {
+		c.xmuxManager.closeAll()
+		c.xmuxManager = nil
+	}
 	return nil
 }
 
@@ -388,6 +394,17 @@ type xmuxClient struct {
 	leftUsage    int32
 	leftRequests atomic.Int32
 	unreusableAt time.Time
+}
+
+func (xc *xmuxClient) closeIdleConnections() {
+	if xc.httpClient != nil && xc.httpClient.Transport != nil {
+		type idleCloser interface {
+			CloseIdleConnections()
+		}
+		if ic, ok := xc.httpClient.Transport.(idleCloser); ok {
+			ic.CloseIdleConnections()
+		}
+	}
 }
 
 type xmuxManager struct {
@@ -438,6 +455,13 @@ func (m *xmuxManager) newClient() *xmuxClient {
 	return xc
 }
 
+func (m *xmuxManager) closeAll() {
+	for _, xc := range m.clients {
+		xc.closeIdleConnections()
+	}
+	m.clients = nil
+}
+
 func (m *xmuxManager) getClient() *xmuxClient {
 	// Prune dead clients
 	for i := 0; i < len(m.clients); {
@@ -445,6 +469,7 @@ func (m *xmuxManager) getClient() *xmuxClient {
 		if xc.leftUsage == 0 ||
 			xc.leftRequests.Load() <= 0 ||
 			(!xc.unreusableAt.IsZero() && time.Now().After(xc.unreusableAt)) {
+			xc.closeIdleConnections()
 			m.clients = append(m.clients[:i], m.clients[i+1:]...)
 		} else {
 			i++
