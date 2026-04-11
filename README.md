@@ -5,7 +5,6 @@
 ---
 
 > *"всё остальное, что только можно пожелать"*
-> — xray-core docs
 >
 > `+ c.xmuxManager.closeAll()`
 
