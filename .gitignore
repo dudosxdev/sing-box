@@ -1,3 +1,7 @@
+libbox.aar
+libbox-legacy.aar
+libbox-legacy-sources.jar
+libbox-sources.jar
 /.idea/
 /vendor/
 /*.json
@@ -22,3 +26,4 @@ CLAUDE.md
 AGENTS.md
 /.claude/
 Xray-core
+/.codex/
