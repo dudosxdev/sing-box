@@ -5,7 +5,8 @@ icon: material/new-box
 !!! quote "sing-box 1.14.0 中的更改"
 
     :material-plus: [source_mac_address](#source_mac_address)  
-    :material-plus: [source_hostname](#source_hostname)
+    :material-plus: [source_hostname](#source_hostname)  
+    :material-plus: [package_name_regex](#package_name_regex)
 
 !!! quote "sing-box 1.13.0 中的更改"
 
@@ -127,6 +128,9 @@ icon: material/new-box
         "package_name": [
           "com.termux"
         ],
+        "package_name_regex": [
+          "^com\\.termux.*"
+        ],
         "user": [
           "sekai"
         ],
@@ -208,7 +212,7 @@ icon: material/new-box
     (`source_port` || `source_port_range`) &&  
     `other fields`
 
-    另外，引用的规则集可视为被合并，而不是作为一个单独的规则子项。
+    另外，引用规则集中的每个分支都可视为与外层规则合并，不同分支之间仍保持 OR 语义。
 
 #### inbound
 
@@ -351,6 +355,12 @@ icon: material/new-box
 #### package_name
 
 匹配 Android 应用包名。
+
+#### package_name_regex
+
+!!! question "自 sing-box 1.14.0 起"
+
+使用正则表达式匹配 Android 应用包名。
 
 #### user
 

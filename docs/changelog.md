@@ -2,9 +2,131 @@
 icon: material/alert-decagram
 ---
 
-#### 1.14.0-alpha.3
+#### 1.14.0-alpha.11
+
+* Add optimistic DNS cache **1**
+* Update NaiveProxy to 147.0.7727.49
+* Fixes and improvements
+
+**1**:
+
+Optimistic DNS cache returns an expired cached response immediately while
+refreshing it in the background, reducing tail latency for repeated
+queries. Enabled via [`optimistic`](/configuration/dns/#optimistic)
+in DNS options, and can be persisted across restarts with the new
+[`store_dns`](/configuration/experimental/cache-file/#store_dns) cache
+file option. A per-query
+[`disable_optimistic_cache`](/configuration/dns/rule_action/#disable_optimistic_cache)
+field is also available on DNS rule actions and the `resolve` route rule
+action.
+
+This deprecates the `independent_cache` DNS option (the DNS cache now
+always keys by transport) and the `store_rdrc` cache file option
+(replaced by `store_dns`); both will be removed in sing-box 1.16.0.
+See [Migration](/migration/#migrate-independent-dns-cache).
+
+#### 1.14.0-alpha.10
+
+* Add `evaluate` DNS rule action and Response Match Fields **1**
+* `ip_version` and `query_type` now also take effect on internal DNS lookups **2**
+* Add `package_name_regex` route, DNS and headless rule item **3**
+* Add cloudflared inbound **4**
+* Fixes and improvements
+
+**1**:
+
+Response Match Fields
+([`response_rcode`](/configuration/dns/rule/#response_rcode),
+[`response_answer`](/configuration/dns/rule/#response_answer),
+[`response_ns`](/configuration/dns/rule/#response_ns),
+and [`response_extra`](/configuration/dns/rule/#response_extra))
+match the evaluated DNS response. They are gated by the new
+[`match_response`](/configuration/dns/rule/#match_response) field and
+populated by a preceding
+[`evaluate`](/configuration/dns/rule_action/#evaluate) DNS rule action;
+the evaluated response can also be returned directly by a
+[`respond`](/configuration/dns/rule_action/#respond) action.
+
+This deprecates the Legacy Address Filter Fields (`ip_cidr`,
+`ip_is_private` without `match_response`) in DNS rules, the Legacy
+`strategy` DNS rule action option, and the Legacy
+`rule_set_ip_cidr_accept_empty` DNS rule item; all three will be removed
+in sing-box 1.16.0.
+See [Migration](/migration/#migrate-address-filter-fields-to-response-matching).
+
+**2**:
+
+`ip_version` and `query_type` in DNS rules, together with `query_type` in
+referenced rule-sets, now take effect on every DNS rule evaluation,
+including matches from internal domain resolutions that do not target a
+specific DNS server (for example a `resolve` route rule action without
+`server` set). In earlier versions they were silently ignored in that
+path. Combining these fields with any of the legacy DNS fields deprecated
+in **1** in the same DNS configuration is no longer supported and is
+rejected at startup.
+See [Migration](/migration/#ip_version-and-query_type-behavior-changes-in-dns-rules).
+
+**3**:
+
+See [Route Rule](/configuration/route/rule/#package_name_regex),
+[DNS Rule](/configuration/dns/rule/#package_name_regex) and
+[Headless Rule](/configuration/rule-set/headless-rule/#package_name_regex).
+
+**4**:
+
+See [Cloudflared](/configuration/inbound/cloudflared/).
+
+#### 1.13.7
+
+* Fixes and improvement
+
+#### 1.13.6
 
 * Fixes and improvements
+
+#### 1.14.0-alpha.8
+
+* Add BBR profile and hop interval randomization for Hysteria2 **1**
+* Fixes and improvements
+
+**1**:
+
+See [Hysteria2 Inbound](/configuration/inbound/hysteria2/#bbr_profile) and [Hysteria2 Outbound](/configuration/outbound/hysteria2/#bbr_profile).
+
+#### 1.14.0-alpha.8
+
+* Fixes and improvements
+
+#### 1.13.5
+
+* Fixes and improvements
+
+#### 1.14.0-alpha.7
+
+* Fixes and improvements
+
+#### 1.13.4
+
+* Fixes and improvements
+
+#### 1.14.0-alpha.4
+
+* Refactor ACME support to certificate provider system **1**
+* Add Cloudflare Origin CA certificate provider **2**
+* Add Tailscale certificate provider **3**
+* Fixes and improvements
+
+**1**:
+
+See [Certificate Provider](/configuration/shared/certificate-provider/) and [Migration](/migration/#migrate-inline-acme-to-certificate-provider).
+
+**2**:
+
+See [Cloudflare Origin CA](/configuration/shared/certificate-provider/cloudflare-origin-ca).
+
+**3**:
+
+See [Tailscale](/configuration/shared/certificate-provider/tailscale).
 
 #### 1.13.3
 
@@ -704,7 +826,7 @@ DNS servers are refactored for better performance and scalability.
 
 See [DNS server](/configuration/dns/server/).
 
-For migration, see [Migrate to new DNS server formats](/migration/#migrate-to-new-dns-servers).
+For migration, see [Migrate to new DNS server formats](/migration/#migrate-to-new-dns-server-formats).
 
 Compatibility for old formats will be removed in sing-box 1.14.0.
 
@@ -1174,7 +1296,7 @@ DNS servers are refactored for better performance and scalability.
 
 See [DNS server](/configuration/dns/server/).
 
-For migration, see [Migrate to new DNS server formats](/migration/#migrate-to-new-dns-servers).
+For migration, see [Migrate to new DNS server formats](/migration/#migrate-to-new-dns-server-formats).
 
 Compatibility for old formats will be removed in sing-box 1.14.0.
 
@@ -2010,7 +2132,7 @@ See [Migration](/migration/#process_path-format-update-on-windows).
 The new DNS feature allows you to more precisely bypass Chinese websites via **DNS leaks**. Do not use plain local DNS
 if using this method.
 
-See [Address Filter Fields](/configuration/dns/rule#address-filter-fields).
+See [Legacy Address Filter Fields](/configuration/dns/rule#legacy-address-filter-fields).
 
 [Client example](/manual/proxy/client#traffic-bypass-usage-for-chinese-users) updated.
 
@@ -2024,7 +2146,7 @@ the [Client example](/manual/proxy/client#traffic-bypass-usage-for-chinese-users
 **5**:
 
 The new feature allows you to cache the check results of
-[Address filter DNS rule items](/configuration/dns/rule/#address-filter-fields) until expiration.
+[Legacy Address Filter Fields](/configuration/dns/rule/#legacy-address-filter-fields) until expiration.
 
 **6**:
 
@@ -2205,7 +2327,7 @@ See [TUN](/configuration/inbound/tun) inbound.
 **1**:
 
 The new feature allows you to cache the check results of
-[Address filter DNS rule items](/configuration/dns/rule/#address-filter-fields) until expiration.
+[Legacy Address Filter Fields](/configuration/dns/rule/#legacy-address-filter-fields) until expiration.
 
 #### 1.9.0-alpha.7
 
@@ -2252,7 +2374,7 @@ See [Migration](/migration/#process_path-format-update-on-windows).
 The new DNS feature allows you to more precisely bypass Chinese websites via **DNS leaks**. Do not use plain local DNS
 if using this method.
 
-See [Address Filter Fields](/configuration/dns/rule#address-filter-fields).
+See [Legacy Address Filter Fields](/configuration/dns/rule#legacy-address-filter-fields).
 
 [Client example](/manual/proxy/client#traffic-bypass-usage-for-chinese-users) updated.
 
