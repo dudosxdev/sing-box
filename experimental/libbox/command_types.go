@@ -350,10 +350,12 @@ func outboundGroupItemListFromGRPC(list *daemon.OutboundList) OutboundGroupItemI
 	var items []*OutboundGroupItem
 	for _, ob := range list.Outbounds {
 		items = append(items, &OutboundGroupItem{
-			Tag:          ob.Tag,
-			Type:         ob.Type,
-			URLTestTime:  ob.UrlTestTime,
-			URLTestDelay: ob.UrlTestDelay,
+			Tag:           ob.Tag,
+			Type:          ob.Type,
+			URLTestTime:   ob.UrlTestTime,
+			URLTestDelay:  ob.UrlTestDelay,
+			URLTestStatus: ob.UrlTestStatus,
+			URLTestError:  ob.UrlTestError,
 		})
 	}
 	return newIterator(items)

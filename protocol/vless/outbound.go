@@ -105,7 +105,11 @@ func (h *Outbound) DialContext(ctx context.Context, network string, destination 
 		case N.NetworkUDP:
 			h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 		}
-		return (*vlessDialer)(h).DialContext(ctx, network, destination)
+		conn, err := (*vlessDialer)(h).DialContext(ctx, network, destination)
+		if err != nil {
+			adapter.StoreURLTestFailure(ctx, h, err)
+		}
+		return conn, err
 	} else {
 		switch N.NetworkName(network) {
 		case N.NetworkTCP:
@@ -113,17 +117,33 @@ func (h *Outbound) DialContext(ctx context.Context, network string, destination 
 		case N.NetworkUDP:
 			h.logger.InfoContext(ctx, "outbound multiplex packet connection to ", destination)
 		}
-		return h.multiplexDialer.DialContext(ctx, network, destination)
+		conn, err := h.multiplexDialer.DialContext(ctx, network, destination)
+		if err != nil {
+			adapter.StoreURLTestFailure(ctx, h, err)
+		} else {
+			adapter.StoreURLTestSuccess(ctx, h)
+		}
+		return conn, err
 	}
 }
 
 func (h *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	if h.multiplexDialer == nil {
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
-		return (*vlessDialer)(h).ListenPacket(ctx, destination)
+		conn, err := (*vlessDialer)(h).ListenPacket(ctx, destination)
+		if err != nil {
+			adapter.StoreURLTestFailure(ctx, h, err)
+		}
+		return conn, err
 	} else {
 		h.logger.InfoContext(ctx, "outbound multiplex packet connection to ", destination)
-		return h.multiplexDialer.ListenPacket(ctx, destination)
+		conn, err := h.multiplexDialer.ListenPacket(ctx, destination)
+		if err != nil {
+			adapter.StoreURLTestFailure(ctx, h, err)
+		} else {
+			adapter.StoreURLTestSuccess(ctx, h)
+		}
+		return conn, err
 	}
 }
 
@@ -156,27 +176,52 @@ func (h *vlessDialer) DialContext(ctx context.Context, network string, destinati
 		conn, err = h.dialer.DialContext(ctx, N.NetworkTCP, h.serverAddr)
 	}
 	if err != nil {
+		adapter.StoreURLTestFailure(ctx, h, err)
 		return nil, err
 	}
 	switch N.NetworkName(network) {
 	case N.NetworkTCP:
 		h.logger.InfoContext(ctx, "outbound connection to ", destination)
-		return h.client.DialEarlyConn(conn, destination)
+		earlyConn, earlyErr := h.client.DialEarlyConn(conn, destination)
+		if earlyErr != nil {
+			common.Close(conn)
+			adapter.StoreURLTestFailure(ctx, h, earlyErr)
+			return nil, earlyErr
+		}
+		adapter.StoreURLTestSuccess(ctx, h)
+		return earlyConn, nil
 	case N.NetworkUDP:
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 		if h.xudp {
-			return h.client.DialEarlyXUDPPacketConn(conn, destination)
+			packetConn, packetErr := h.client.DialEarlyXUDPPacketConn(conn, destination)
+			if packetErr != nil {
+				common.Close(conn)
+				adapter.StoreURLTestFailure(ctx, h, packetErr)
+				return nil, packetErr
+			}
+			adapter.StoreURLTestSuccess(ctx, h)
+			return packetConn, nil
 		} else if h.packetAddr {
 			if destination.IsDomain() {
 				return nil, E.New("packetaddr: domain destination is not supported")
 			}
 			packetConn, err := h.client.DialEarlyPacketConn(conn, M.Socksaddr{Fqdn: packetaddr.SeqPacketMagicAddress})
 			if err != nil {
+				common.Close(conn)
+				adapter.StoreURLTestFailure(ctx, h, err)
 				return nil, err
 			}
+			adapter.StoreURLTestSuccess(ctx, h)
 			return bufio.NewBindPacketConn(packetaddr.NewConn(packetConn, destination), destination), nil
 		} else {
-			return h.client.DialEarlyPacketConn(conn, destination)
+			packetConn, packetErr := h.client.DialEarlyPacketConn(conn, destination)
+			if packetErr != nil {
+				common.Close(conn)
+				adapter.StoreURLTestFailure(ctx, h, packetErr)
+				return nil, packetErr
+			}
+			adapter.StoreURLTestSuccess(ctx, h)
+			return packetConn, nil
 		}
 	default:
 		return nil, E.Extend(N.ErrUnknownNetwork, network)
@@ -199,20 +244,38 @@ func (h *vlessDialer) ListenPacket(ctx context.Context, destination M.Socksaddr)
 	}
 	if err != nil {
 		common.Close(conn)
+		adapter.StoreURLTestFailure(ctx, h, err)
 		return nil, err
 	}
 	if h.xudp {
-		return h.client.DialEarlyXUDPPacketConn(conn, destination)
+		packetConn, packetErr := h.client.DialEarlyXUDPPacketConn(conn, destination)
+		if packetErr != nil {
+			common.Close(conn)
+			adapter.StoreURLTestFailure(ctx, h, packetErr)
+			return nil, packetErr
+		}
+		adapter.StoreURLTestSuccess(ctx, h)
+		return packetConn, nil
 	} else if h.packetAddr {
 		if destination.IsDomain() {
 			return nil, E.New("packetaddr: domain destination is not supported")
 		}
 		conn, err := h.client.DialEarlyPacketConn(conn, M.Socksaddr{Fqdn: packetaddr.SeqPacketMagicAddress})
 		if err != nil {
+			common.Close(conn)
+			adapter.StoreURLTestFailure(ctx, h, err)
 			return nil, err
 		}
+		adapter.StoreURLTestSuccess(ctx, h)
 		return packetaddr.NewConn(conn, destination), nil
 	} else {
-		return h.client.DialEarlyPacketConn(conn, destination)
+		packetConn, packetErr := h.client.DialEarlyPacketConn(conn, destination)
+		if packetErr != nil {
+			common.Close(conn)
+			adapter.StoreURLTestFailure(ctx, h, packetErr)
+			return nil, packetErr
+		}
+		adapter.StoreURLTestSuccess(ctx, h)
+		return packetConn, nil
 	}
 }

@@ -1118,6 +1118,8 @@ func (s *StartedService) SubscribeOutbounds(_ *emptypb.Empty, server grpc.Server
 			if history := historyStorage.LoadURLTestHistory(adapter.OutboundTag(ob)); history != nil {
 				item.UrlTestTime = history.Time.Unix()
 				item.UrlTestDelay = int32(history.Delay)
+				item.UrlTestStatus = history.Status
+				item.UrlTestError = history.Error
 			}
 			list.Outbounds = append(list.Outbounds, item)
 		}
@@ -1129,6 +1131,8 @@ func (s *StartedService) SubscribeOutbounds(_ *emptypb.Empty, server grpc.Server
 			if history := historyStorage.LoadURLTestHistory(adapter.OutboundTag(ep)); history != nil {
 				item.UrlTestTime = history.Time.Unix()
 				item.UrlTestDelay = int32(history.Delay)
+				item.UrlTestStatus = history.Status
+				item.UrlTestError = history.Error
 			}
 			list.Outbounds = append(list.Outbounds, item)
 		}

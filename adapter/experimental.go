@@ -9,6 +9,7 @@ import (
 
 	"github.com/sagernet/sing/common/observable"
 	"github.com/sagernet/sing/common/varbin"
+	"github.com/sagernet/sing/service"
 )
 
 type ClashServer interface {
@@ -156,4 +157,48 @@ func OutboundTag(detour Outbound) string {
 		return group.Now()
 	}
 	return detour.Tag()
+}
+
+func StoreURLTestFailure(ctx context.Context, detour Outbound, err error) {
+	if err == nil {
+		return
+	}
+	historyStorage := service.FromContext[URLTestHistoryStorage](ctx)
+	if historyStorage == nil {
+		return
+	}
+	tag := OutboundTag(detour)
+	if tag == "" {
+		return
+	}
+	var delay uint16
+	if history := historyStorage.LoadURLTestHistory(tag); history != nil {
+		delay = history.Delay
+	}
+	historyStorage.StoreURLTestHistory(tag, &URLTestHistory{
+		Time:   time.Now(),
+		Delay:  delay,
+		Status: URLTestStatusUnavailable,
+		Error:  err.Error(),
+	})
+}
+
+func StoreURLTestSuccess(ctx context.Context, detour Outbound) {
+	historyStorage := service.FromContext[URLTestHistoryStorage](ctx)
+	if historyStorage == nil {
+		return
+	}
+	tag := OutboundTag(detour)
+	if tag == "" {
+		return
+	}
+	history := historyStorage.LoadURLTestHistory(tag)
+	if history == nil {
+		return
+	}
+	historyStorage.StoreURLTestHistory(tag, &URLTestHistory{
+		Time:   time.Now(),
+		Delay:  history.Delay,
+		Status: URLTestStatusAvailable,
+	})
 }
