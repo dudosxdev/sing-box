@@ -34,9 +34,10 @@ import (
 var _ adapter.NetworkManager = (*NetworkManager)(nil)
 
 type NetworkManager struct {
-	logger            logger.ContextLogger
-	interfaceFinder   *control.DefaultInterfaceFinder
-	networkInterfaces common.TypedValue[[]adapter.NetworkInterface]
+	logger               logger.ContextLogger
+	interfaceFinder      *control.DefaultInterfaceFinder
+	networkInterfaces    common.TypedValue[[]adapter.NetworkInterface]
+	lastDefaultInterface *control.Interface
 
 	autoDetectInterface    bool
 	defaultOptions         adapter.NetworkOptions
@@ -455,7 +456,10 @@ func (r *NetworkManager) ResetNetwork() {
 	if r.connectionManager != nil {
 		r.connectionManager.CloseAll()
 	}
+	r.notifyInterfaceListeners()
+}
 
+func (r *NetworkManager) notifyInterfaceListeners() {
 	for _, endpoint := range r.endpoint.Endpoints() {
 		listener, isListener := endpoint.(adapter.InterfaceUpdateListener)
 		if isListener {
@@ -478,12 +482,25 @@ func (r *NetworkManager) ResetNetwork() {
 	}
 }
 
+func cloneInterface(iface *control.Interface) *control.Interface {
+	if iface == nil {
+		return nil
+	}
+	clonedInterface := *iface
+	clonedInterface.HardwareAddr = slices.Clone(iface.HardwareAddr)
+	clonedInterface.Addresses = slices.Clone(iface.Addresses)
+	return &clonedInterface
+}
+
 func (r *NetworkManager) notifyInterfaceUpdate(defaultInterface *control.Interface, flags int) {
 	if defaultInterface == nil {
+		r.lastDefaultInterface = nil
 		r.pauseManager.NetworkPause()
 		r.logger.Error("missing default interface")
 		return
 	}
+	sameDefaultInterface := r.lastDefaultInterface != nil && r.lastDefaultInterface.Equals(*defaultInterface)
+	r.lastDefaultInterface = cloneInterface(defaultInterface)
 
 	r.pauseManager.NetworkWake()
 	var options []string
@@ -516,6 +533,10 @@ func (r *NetworkManager) notifyInterfaceUpdate(defaultInterface *control.Interfa
 	r.UpdateWIFIState()
 
 	if !r.started {
+		return
+	}
+	if flags&tun.FlagAndroidVPNUpdate != 0 && sameDefaultInterface {
+		r.notifyInterfaceListeners()
 		return
 	}
 	r.ResetNetwork()
